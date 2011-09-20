@@ -1,0 +1,1 @@
+This is a drop in replacement for the Cross-Platform NavigationController written by Kevin Whinnery, we found we were having severe issues getting the CommonJS version of this working on Android, and therefore re-wrote it, this now works as expected, we also implemented an additional function named back.
