@@ -1,57 +1,82 @@
-var navigationController = {};
-navigationController.windowStack = [];
-navigationController.navGroup = {};
+exports.NavigationController = function() {
+	this.windowStack = [];
+	this.theCurrentWindow = null;
+	this.platformName = Ti.Platform.osname;
+};
 
-(function(){
-	navigationController.open = function(windowToOpen){
-		//add the window to the stack of windows managed by the controller
-		navigationController.windowStack.push(windowToOpen);
+exports.NavigationController.prototype.open = function(/*Ti.UI.Window*/windowToOpen) {
 	
-		//grab a copy of the current nav controller for use in the callback
-		var that = this;
-		//hack - setting this property ensures the window is "heavyweight" (associated with an Android activity)
-		windowToOpen.navBarHidden = windowToOpen.navBarHidden || false;
+	var windows = this.windowStack.concat([]);
 	
-		//This is the first window
-		if(navigationController.windowStack.length === 1) {
-			if(Ti.Platform.osname === 'android') {
-				windowToOpen.exitOnClose = true;
-				windowToOpen.open();
-			} else {
-				navigationController.navGroup = Ti.UI.iPhone.createNavigationGroup({
-					window : windowToOpen
-				});
-				var containerWindow = Ti.UI.createWindow();
-				containerWindow.add(navigationController.navGroup);
-				containerWindow.open();
-			}
+	if(windows.length === 0 && this.theCurrentWindow != null) {
+		this.windowStack.push(this.theCurrentWindow);
+	}
+	
+	//add the window to the stack of windows managed by the controller
+	this.windowStack.push(windowToOpen);
+	this.theCurrentWindow = windowToOpen;
+	
+	var windows = this.windowStack.concat([]);
+
+	//grab a copy of the current nav controller for use in the callback
+	var that = this;
+	windowToOpen.addEventListener('close', function() {
+		that.windowStack.pop();
+	});
+
+	//hack - setting this property ensures the window is "heavyweight" (associated with an Android activity)
+	windowToOpen.navBarHidden = windowToOpen.navBarHidden || false;
+
+	//This is the first window
+	if(this.windowStack.length === 1) {
+
+		if(this.platformName === 'android') {
+			windowToOpen.exitOnClose = true;
+			windowToOpen.open();
+		} else {
+			this.navGroup = Ti.UI.iPhone.createNavigationGroup({
+				window : windowToOpen
+			});
+			var containerWindow = Ti.UI.createWindow();
+			containerWindow.add(this.navGroup);
+			containerWindow.open();
 		}
-		//All subsequent windows
-		else {
-			if(Ti.Platform.osname === 'android') {
-				windowToOpen.open();
-			} else {
-				navigationController.navGroup.open(windowToOpen);
-			}
+	}
+	//All subsequent windows
+	else {
+		if(this.platformName === 'android') {
+			windowToOpen.open();
+		} else {
+			this.navGroup.open(windowToOpen);
 		}
-	};
-	navigationController.home = function(windowToOpen){
-		//store a copy of all the current windows on the stack
-		var windows = navigationController.windowStack.concat([]);
-		for(var i = 1, l = windows.length; i < l; i++) {
-			(navigationController.navGroup) ? navigationController.navGroup.close(windows[i]) : windows[i].close();
-		}
-		navigationController.windowStack = [navigationController.windowStack[0]]; //reset stack
-		
-		Ti.API.info(navigationController.windowStack);
-	};
-	navigationController.back = function(w){
-		//store a copy of all the current windows on the stack
-		if(Ti.Platform.osname === 'android') {
-			w.close();
+	}
+};
+
+//go back to the initial window of the NavigationController
+exports.NavigationController.prototype.home = function() {
+	//store a copy of all the current windows on the stack
+	var windows = this.windowStack.concat([]);
+
+	for(var i = 1, l = windows.length; i < l; i++) {
+		if(this.platformName == 'android') {
+			windows[i].close();
 		}else{
-			navigationController.navGroup.close(w);
+			this.navGroup.close(this.windowStack[i]);
 		}
-	};
-})();
+	}
+	this.theCurrentWindow = this.windowStack[0];
+	this.windowStack = []; //reset stack
+	this.windowStack.push(this.theCurrentWindow);
 
+	
+};
+
+exports.NavigationController.prototype.back = function(w){
+	//store a copy of all the current windows on the stack
+	if(Ti.Platform.osname === 'android') {
+		w.close();
+	}else{
+		var win = Titanium.UI.currentWindow;
+		this.navGroup.close(this.windowStack[this.windowStack.length -1]);
+	}
+};
